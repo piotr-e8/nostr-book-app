@@ -1,0 +1,202 @@
+import type { NostrEvent } from '@nostrify/nostrify';
+import { useState } from 'react';
+import { useAuthor } from '@/hooks/useAuthor';
+import { extractBookMetadata, estimateReadingTime, formatPublishDate } from '@/lib/bookUtils';
+import { genUserName } from '@/lib/genUserName';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { BookOpen, Clock, Calendar, Share2, Heart, MessageCircle } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { useToast } from '@/hooks/useToast';
+import { nip19 } from 'nostr-tools';
+
+interface BookReaderProps {
+  event: NostrEvent;
+}
+
+export function BookReader({ event }: BookReaderProps) {
+  const { toast } = useToast();
+  const author = useAuthor(event.pubkey);
+  const metadata = extractBookMetadata(event);
+  const readingTime = estimateReadingTime(event.content);
+  const [liked, setLiked] = useState(false);
+
+  const authorName = author.data?.metadata?.name || genUserName(event.pubkey);
+  const authorAvatar = author.data?.metadata?.picture;
+  const authorAbout = author.data?.metadata?.about;
+
+  const naddr = nip19.naddrEncode({
+    kind: event.kind,
+    pubkey: event.pubkey,
+    identifier: metadata.identifier,
+  });
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/${naddr}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast({
+        title: 'Link copied!',
+        description: 'Book link has been copied to clipboard.',
+      });
+    } catch (err) {
+      toast({
+        title: 'Failed to copy',
+        description: 'Please copy the link manually.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleLike = () => {
+    setLiked(!liked);
+    toast({
+      title: liked ? 'Removed from favorites' : 'Added to favorites',
+      description: liked ? 'Book removed from your reading list.' : 'Book added to your reading list.',
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      {/* Hero Section */}
+      <div className="relative">
+        {metadata.image && (
+          <div className="absolute inset-0 h-[400px] overflow-hidden">
+            <img
+              src={metadata.image}
+              alt={metadata.title}
+              className="w-full h-full object-cover opacity-20 blur-2xl"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-background/50 via-background/80 to-background" />
+          </div>
+        )}
+
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
+          <div className="flex flex-col md:flex-row gap-8 items-start">
+            {/* Book Cover */}
+            {metadata.image ? (
+              <div className="w-full md:w-64 flex-shrink-0">
+                <div className="aspect-[3/4] rounded-lg overflow-hidden shadow-2xl">
+                  <img
+                    src={metadata.image}
+                    alt={metadata.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="w-full md:w-64 flex-shrink-0">
+                <div className="aspect-[3/4] rounded-lg bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-2xl">
+                  <BookOpen className="h-24 w-24 text-white opacity-80" />
+                </div>
+              </div>
+            )}
+
+            {/* Book Info */}
+            <div className="flex-1">
+              <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+                {metadata.title}
+              </h1>
+
+              {metadata.summary && (
+                <p className="text-lg text-muted-foreground mb-6">
+                  {metadata.summary}
+                </p>
+              )}
+
+              {/* Tags */}
+              {metadata.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-6">
+                  {metadata.tags.map((tag) => (
+                    <Badge key={tag} variant="secondary" className="text-sm">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              {/* Stats */}
+              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-6">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  <span>{readingTime} min read</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  <span>{formatPublishDate(metadata.publishedAt || event.created_at)}</span>
+                </div>
+              </div>
+
+              {/* Author */}
+              <div className="flex items-center gap-3 mb-6 p-4 bg-card rounded-lg border">
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={authorAvatar} alt={authorName} />
+                  <AvatarFallback>{authorName[0]?.toUpperCase() || '?'}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-semibold">{authorName}</p>
+                  {authorAbout && (
+                    <p className="text-sm text-muted-foreground line-clamp-1">
+                      {authorAbout}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={handleLike} variant={liked ? 'default' : 'outline'}>
+                  <Heart className={`h-4 w-4 mr-2 ${liked ? 'fill-current' : ''}`} />
+                  {liked ? 'Favorited' : 'Add to Favorites'}
+                </Button>
+                <Button onClick={handleShare} variant="outline">
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Share
+                </Button>
+                <Button variant="outline">
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Comments
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <Separator className="my-8" />
+
+      {/* Book Content */}
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+        <article className="prose prose-lg dark:prose-invert max-w-none">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {event.content}
+          </ReactMarkdown>
+        </article>
+      </div>
+
+      {/* Footer */}
+      <div className="border-t bg-muted/30">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-16 w-16">
+                <AvatarImage src={authorAvatar} alt={authorName} />
+                <AvatarFallback>{authorName[0]?.toUpperCase() || '?'}</AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="font-semibold text-lg">Written by {authorName}</p>
+                {authorAbout && (
+                  <p className="text-sm text-muted-foreground">{authorAbout}</p>
+                )}
+              </div>
+            </div>
+            <Button variant="outline">View More Books</Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
