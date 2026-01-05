@@ -169,8 +169,17 @@ export function BookReader({ event }: BookReaderProps) {
       <Separator className="my-8" />
 
       {/* Book Content */}
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-        <article className="prose prose-lg dark:prose-invert max-w-none">
+      <div className="max-w-[720px] mx-auto px-6 pb-24">
+  <article
+    className="
+      prose
+      prose-lg
+      dark:prose-invert
+      leading-relaxed
+      prose-p:my-6
+      prose-headings:scroll-mt-24
+    "
+  >
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {event.content}
           </ReactMarkdown>
