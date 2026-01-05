@@ -17,9 +17,66 @@ import remarkGfm from 'remark-gfm';
 import { nip19 } from 'nostr-tools';
 import { useNavigate } from 'react-router-dom';
 
+type Chapter = {
+  title: string;
+  content: string;
+  order: number;
+};
+
+function parseMarkdownChapters(markdown: string): Chapter[] {
+  const lines = markdown.split('\n');
+  const chapters: Chapter[] = [];
+  let current: Chapter | null = null;
+  let order = 1;
+
+  for (const line of lines) {
+    if (line.startsWith('## ')) {
+      if (current) chapters.push(current);
+      current = {
+        title: line.replace('## ', '').trim(),
+        content: '',
+        order: order++,
+      };
+    } else if (current) {
+      current.content += line + '\n';
+    }
+  }
+
+  if (current) chapters.push(current);
+  return chapters;
+}
+
+function extractTitleAndSummary(markdown: string) {
+  const lines = markdown.split('\n');
+
+  let title = '';
+  let summary = '';
+  let summaryLines: string[] = [];
+
+  for (let line of lines) {
+    if (!title && line.startsWith('# ')) {
+      title = line.replace('# ', '').trim();
+      continue;
+    }
+
+    if (title && !line.startsWith('## ')) {
+      if (line.trim() !== '') {
+        summaryLines.push(line.trim());
+      }
+    }
+
+    if (line.startsWith('## ')) {
+      break; // summary tylko do pierwszego rozdziału
+    }
+  }
+
+  summary = summaryLines.join(' ').slice(0, 300); // max 300 znaków
+  return { title, summary };
+}
+
 export function BookPublisher() {
   const { user } = useCurrentUser();
-  const { mutate: createEvent, isPending } = useNostrPublish();
+const { mutateAsync: createEventAsync, isPending } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -32,6 +89,9 @@ export function BookPublisher() {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [activeTab, setActiveTab] = useState<'write' | 'preview'>('write');
+  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [activeChapterIndex, setActiveChapterIndex] = useState(0);
+
 
   const handleTitleChange = (value: string) => {
     setTitle(value);
@@ -71,84 +131,140 @@ export function BookPublisher() {
     }
   };
 
-  const handlePublish = () => {
-    if (!title.trim()) {
-      toast({
-        title: 'Title required',
-        description: 'Please enter a title for your book.',
-        variant: 'destructive',
+const handlePublish = async () => {
+  if (!title || !identifier || !content) {
+    toast({
+      title: 'Missing data',
+      description: 'Title, identifier and content are required.',
+      variant: 'destructive',
+    });
+    return;
+  }
+
+  const chapters = parseMarkdownChapters(content);
+
+  if (chapters.length === 0) {
+    toast({
+      title: 'No chapters found',
+      description: 'Use ## Chapter title to define chapters.',
+      variant: 'destructive',
+    });
+    return;
+  }
+
+  try {
+    // 1️⃣ Publish chapters
+    const publishedChapters: {
+      title: string;
+      order: number;
+      eventId: string;
+    }[] = [];
+
+    for (const chapter of chapters) {
+      const chapterIdentifier = `${identifier}:chapter:${chapter.order}`;
+
+      const event = await createEventAsync({
+        kind: 30023,
+        content: chapter.content.trim(),
+        tags: [
+          ['d', chapterIdentifier],
+          ['title', chapter.title],
+          ['book', identifier],
+          ['chapter', chapter.order.toString()],
+          ['published_at', Math.floor(Date.now() / 1000).toString()],
+        ],
       });
-      return;
-    }
 
-    if (!identifier.trim()) {
-      toast({
-        title: 'Identifier required',
-        description: 'Please enter an identifier for your book.',
-        variant: 'destructive',
+      publishedChapters.push({
+        title: chapter.title,
+        order: chapter.order,
+        eventId: event.id,
+naddr: nip19.naddrEncode({
+          kind: 30023,
+          pubkey: event.pubkey,
+          identifier: chapterIdentifier,
+        })
       });
-      return;
     }
 
-    if (!content.trim()) {
-      toast({
-        title: 'Content required',
-        description: 'Please write some content for your book.',
-        variant: 'destructive',
-      });
-      return;
-    }
+    // 2️⃣ Publish BOOK MANIFEST
+const manifestMarkdown = `# ${title}
 
-    const eventTags: string[][] = [
-      ['d', identifier],
-      ['title', title],
-      ['published_at', Math.floor(Date.now() / 1000).toString()],
-    ];
+${summary}
 
-    if (summary.trim()) {
-      eventTags.push(['summary', summary]);
-    }
+${coverImage}
 
-    if (coverImage) {
-      eventTags.push(['image', coverImage]);
-    }
+## Table of Contents
+${publishedChapters
+  .map(
+    (ch, idx) =>
+      `${idx + 1}. [${ch.title}](nostr:${ch.naddr})`
+  )
+  .join('\n')}
+`;
 
-    tags.forEach((tag) => {
-      eventTags.push(['t', tag]);
+    const manifestEvent = await createEventAsync({
+      kind: 30023,
+      content: manifestMarkdown,
+      tags: [
+        ['d', identifier],
+        ['title', title],
+        ['type', 'book'],
+        ['published_at', Math.floor(Date.now() / 1000).toString()],
+      ],
     });
 
-    createEvent(
-      {
-        kind: 30023,
-        content,
-        tags: eventTags,
-      },
-      {
-        onSuccess: (event) => {
-          toast({
-            title: 'Book published!',
-            description: 'Your book has been published to Nostr.',
-          });
+    toast({
+      title: 'Book published 🎉',
+      description: `${chapters.length} chapters + manifest published`,
+    });
 
-          const naddr = nip19.naddrEncode({
-            kind: 30023,
-            pubkey: event.pubkey,
-            identifier,
-          });
+    const naddr = nip19.naddrEncode({
+      kind: 30023,
+      pubkey: manifestEvent.pubkey,
+      identifier,
+    });
 
-          // Navigate to the published book
-          navigate(`/${naddr}`);
-        },
-        onError: () => {
-          toast({
-            title: 'Publication failed',
-            description: 'Failed to publish book. Please try again.',
-            variant: 'destructive',
-          });
-        },
-      }
-    );
-  };
+    navigate(`/${naddr}`);
+  } catch (err) {
+    console.error(err);
+    toast({
+      title: 'Publishing failed',
+      description: 'An error occurred while publishing the book.',
+      variant: 'destructive',
+    });
+  }
+};
+
+const handleMarkdownUpload = async (
+  e: React.ChangeEvent<HTMLInputElement>
+) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const text = await file.text();
+
+  setContent(text);
+
+  // auto-extract title & summary
+  const { title: extractedTitle, summary: extractedSummary } =
+    extractTitleAndSummary(text);
+
+  if (extractedTitle) {
+    setTitle(extractedTitle);
+    if (!identifier) setIdentifier(generateSlug(extractedTitle));
+  }
+
+  if (extractedSummary) {
+    setSummary(extractedSummary);
+  }
+
+  toast({
+    title: "Markdown loaded",
+    description: `Loaded ${file.name}`,
+  });
+};
+
 
   if (!user) {
     return (
@@ -183,10 +299,41 @@ export function BookPublisher() {
               <CardTitle>Book Content</CardTitle>
               <CardDescription>
                 Write your book in Markdown format
+<div className="flex items-center gap-2 mb-3">
+  <Button
+    type="button"
+    variant="outline"
+    size="sm"
+    onClick={() => document.getElementById('md-upload')?.click()}
+  >
+    Upload Markdown
+  </Button>
+
+  <input
+    id="md-upload"
+    type="file"
+    accept=".md,.markdown,.txt"
+    className="hidden"
+    onChange={handleMarkdownUpload}
+  />
+</div>
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'write' | 'preview')}>
+              <Tabs
+  value={activeTab}
+  onValueChange={(v) => {
+    const tab = v as 'write' | 'preview';
+    setActiveTab(tab);
+
+    if (tab === 'preview') {
+      const parsed = parseMarkdownChapters(content);
+      setChapters(parsed);
+      setActiveChapterIndex(0);
+    }
+  }}
+>
+
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="write">Write</TabsTrigger>
                   <TabsTrigger value="preview">
@@ -196,9 +343,25 @@ export function BookPublisher() {
                 </TabsList>
 
                 <TabsContent value="write" className="mt-4">
+
                   <Textarea
                     value={content}
-                    onChange={(e) => setContent(e.target.value)}
+                    onChange=onChange={(e) => {
+    const newContent = e.target.value;
+    setContent(newContent);
+
+    // automatyczne uzupełnienie title i summary
+    const { title: extractedTitle, summary: extractedSummary } = extractTitleAndSummary(newContent);
+
+    if (extractedTitle && !title) {
+      setTitle(extractedTitle);
+      if (!identifier) setIdentifier(generateSlug(extractedTitle));
+    }
+
+    if (extractedSummary && !summary) {
+      setSummary(extractedSummary);
+    }
+  }}
                     placeholder="Once upon a time..."
                     className="min-h-[500px] font-mono text-sm"
                   />
@@ -208,20 +371,66 @@ export function BookPublisher() {
                 </TabsContent>
 
                 <TabsContent value="preview" className="mt-4">
-                  <div className="min-h-[500px] p-4 border rounded-lg">
-                    {content ? (
-                      <article className="prose dark:prose-invert max-w-none">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {content}
-                        </ReactMarkdown>
-                      </article>
-                    ) : (
-                      <p className="text-muted-foreground text-center py-8">
-                        No content to preview yet. Start writing!
-                      </p>
-                    )}
-                  </div>
-                </TabsContent>
+  {chapters.length === 0 ? (
+    <p className="text-muted-foreground text-center py-8">
+      Add chapters using <code>## Chapter title</code> to preview the book.
+    </p>
+  ) : (
+    <div className="grid grid-cols-12 gap-6 min-h-[500px]">
+      {/* TOC */}
+      <aside className="col-span-12 md:col-span-4 lg:col-span-3">
+        <Card className="p-4 sticky top-24">
+          <h3 className="text-sm font-semibold mb-3">Table of Contents</h3>
+          <ul className="space-y-1">
+            {chapters.map((chapter, index) => (
+              <li key={index}>
+                <button
+                  onClick={() => setActiveChapterIndex(index)}
+                  className={`w-full text-left px-2 py-1 rounded text-sm transition ${
+                    index === activeChapterIndex
+                      ? 'bg-muted font-medium'
+                      : 'hover:bg-muted/50'
+                  }`}
+                >
+                  {chapter.order}. {chapter.title}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      </aside>
+
+      {/* READER */}
+      <section className="col-span-12 md:col-span-8 lg:col-span-9">
+        <article className="prose dark:prose-invert max-w-none leading-relaxed">
+          <h1>{chapters[activeChapterIndex].title}</h1>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {chapters[activeChapterIndex].content}
+          </ReactMarkdown>
+        </article>
+
+        <div className="flex justify-between mt-10">
+          <Button
+            variant="outline"
+            disabled={activeChapterIndex === 0}
+            onClick={() => setActiveChapterIndex((i) => i - 1)}
+          >
+            Previous
+          </Button>
+
+          <Button
+            variant="outline"
+            disabled={activeChapterIndex === chapters.length - 1}
+            onClick={() => setActiveChapterIndex((i) => i + 1)}
+          >
+            Next
+          </Button>
+        </div>
+      </section>
+    </div>
+  )}
+</TabsContent>
+
               </Tabs>
             </CardContent>
           </Card>
