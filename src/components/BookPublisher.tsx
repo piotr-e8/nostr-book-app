@@ -346,7 +346,7 @@ const handleMarkdownUpload = async (
 
                   <Textarea
                     value={content}
-                    onChange=onChange={(e) => {
+                    onChange={(e) => {
     const newContent = e.target.value;
     setContent(newContent);
 
