@@ -11,7 +11,24 @@ import { BookOpen, Clock, Calendar, Share2, Heart, MessageCircle } from 'lucide-
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useToast } from '@/hooks/useToast';
+import { useBookRoot } from '@/hooks/useBookRoot';
 import { nip19 } from 'nostr-tools';
+import { useParams } from 'react-router-dom';
+
+function extractTOC(markdown?: string) {
+  if (!markdown) return [];
+
+  const toc: { title: string; naddr: string }[] = [];
+  const regex = /\[([^\]]+)\]\(nostr:([^)]+)\)/g;
+
+  let match;
+  while ((match = regex.exec(markdown))) {
+    toc.push({ title: match[1], naddr: match[2] });
+  }
+
+  return toc;
+}
+
 
 interface BookReaderProps {
   event: NostrEvent;
@@ -29,6 +46,14 @@ export function BookReader({ event }: BookReaderProps) {
   const authorAbout = author.data?.metadata?.about;
 
   const [fontSize, setFontSize] = useState(18);
+  const bookSlug =
+  event.tags.find((t) => t[0] === 'book')?.[1] ??
+  event.tags.find((t) => t[0] === 'd')?.[1];
+const bookRoot = useBookRoot(bookSlug);
+const toc = extractTOC(bookRoot.data?.content);
+const [tocOpen, setTocOpen] = useState(false);
+const { nip19 } = useParams();
+
 
   const naddr = nip19.naddrEncode({
     kind: event.kind,
@@ -162,6 +187,13 @@ export function BookReader({ event }: BookReaderProps) {
                   <MessageCircle className="h-4 w-4 mr-2" />
                   Comments
                 </Button>
+                <Button
+  variant="outline"
+  onClick={() => setTocOpen(true)}
+>
+  ☰ Contents
+</Button>
+
               </div>
             </div>
           </div>
@@ -236,6 +268,33 @@ export function BookReader({ event }: BookReaderProps) {
           </div>
         </div>
       </div>
+      {tocOpen && (
+  <div className="fixed inset-0 z-50 bg-black/40">
+    <div className="absolute right-0 top-0 h-full w-80 bg-background shadow-xl p-6 overflow-y-auto">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="font-semibold text-lg">Contents</h2>
+        <button onClick={() => setTocOpen(false)}>✕</button>
+      </div>
+
+      <nav className="space-y-2">
+        {toc.map((item) => (
+          <a
+  key={item.naddr}
+  href={`/${item.naddr}`}
+  className={`block px-3 py-2 rounded ${
+    nip19 === item.naddr
+      ? 'bg-primary text-primary-foreground'
+      : 'hover:bg-muted'
+  }`}
+>
+  {item.title}
+</a>
+        ))}
+      </nav>
+    </div>
+  </div>
+)}
+
     </div>
   );
 }
