@@ -52,7 +52,7 @@ export function BookReader({ event }: BookReaderProps) {
 const bookRoot = useBookRoot(bookSlug);
 const toc = extractTOC(bookRoot.data?.content);
 const [tocOpen, setTocOpen] = useState(false);
-const { nip19 } = useParams();
+const params = useParams();
 
 
   const naddr = nip19.naddrEncode({
@@ -282,7 +282,7 @@ const { nip19 } = useParams();
   key={item.naddr}
   href={`/${item.naddr}`}
   className={`block px-3 py-2 rounded ${
-    nip19 === item.naddr
+    params.nip19 === item.naddr
       ? 'bg-primary text-primary-foreground'
       : 'hover:bg-muted'
   }`}
