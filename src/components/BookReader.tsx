@@ -28,6 +28,8 @@ export function BookReader({ event }: BookReaderProps) {
   const authorAvatar = author.data?.metadata?.picture;
   const authorAbout = author.data?.metadata?.about;
 
+  const [fontSize, setFontSize] = useState(18);
+
   const naddr = nip19.naddrEncode({
     kind: event.kind,
     pubkey: event.pubkey,
@@ -169,17 +171,36 @@ export function BookReader({ event }: BookReaderProps) {
       <Separator className="my-8" />
 
       {/* Book Content */}
-      <div className="max-w-[720px] mx-auto px-6 pb-24">
-  <article
-    className="
-      prose
-      prose-lg
-      dark:prose-invert
-      leading-relaxed
-      prose-p:my-6
-      prose-headings:scroll-mt-24
-    "
-  >
+      <div
+  className="
+    max-w-[720px]
+    mx-auto
+    px-6
+    pb-24
+    overflow-y-auto
+    scroll-smooth
+    snap-y
+    snap-mandatory
+  "
+>
+
+        <div className="flex justify-center gap-2 mb-6 sticky top-2 z-10">
+  <Button size="sm" variant="outline" onClick={() => setFontSize(s => Math.max(14, s - 2))}>A−</Button>
+  <Button size="sm" variant="outline" onClick={() => setFontSize(s => Math.min(26, s + 2))}>A+</Button>
+</div>
+
+        <article
+  className="
+    prose
+    prose-lg
+    dark:prose-invert
+    leading-relaxed
+    prose-p:my-6
+    prose-headings:scroll-mt-24
+    snap-start
+  "
+          style={{ fontSize }}
+>
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {event.content}
           </ReactMarkdown>
