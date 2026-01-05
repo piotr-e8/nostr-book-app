@@ -171,12 +171,13 @@ export function BookReader({ event }: BookReaderProps) {
       <Separator className="my-8" />
 
       {/* Book Content */}
-      <div
+<div
   className="
     max-w-[720px]
     mx-auto
     px-6
     pb-24
+    h-[calc(100vh-120px)]
     overflow-y-auto
     scroll-smooth
     snap-y
@@ -201,9 +202,17 @@ export function BookReader({ event }: BookReaderProps) {
   "
           style={{ fontSize }}
 >
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {event.content}
-          </ReactMarkdown>
+          <ReactMarkdown
+  remarkPlugins={[remarkGfm]}
+  components={{
+    h2: ({ node, ...props }) => (
+      <h2 className="snap-start" {...props} />
+    ),
+  }}
+>
+  {event.content}
+</ReactMarkdown>
+
         </article>
       </div>
 
