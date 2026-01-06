@@ -16,6 +16,7 @@ import { nip19 } from 'nostr-tools';
 import { useParams } from 'react-router-dom';
 
 function extractTOC(markdown?: string) {
+  toast({title: "markdown: " + markdown}); 
   if (!markdown) return [];
 
   const toc: { title: string; naddr: string }[] = [];
