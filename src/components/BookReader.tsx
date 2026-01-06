@@ -26,6 +26,7 @@ function extractTOC(markdown?: string) {
     toc.push({ title: match[1], naddr: match[2] });
   }
   console.log({toc});
+  toast({title: toc, description: toc});
   return toc;
 }
 
