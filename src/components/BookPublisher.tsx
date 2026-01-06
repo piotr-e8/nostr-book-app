@@ -163,19 +163,21 @@ const handlePublish = async () => {
     for (const chapter of chapters) {
       const chapterIdentifier = `${identifier}:chapter:${chapter.order}`;
 
-      const event = await createEventAsync({
-        kind: 30023,
-        content: chapter.content.trim(),
-        tags: [
+      const eventTags = [
           ['d', chapterIdentifier],
           ['title', chapter.title],
           ['book', identifier],
           ['chapter', chapter.order.toString()],
           ['published_at', Math.floor(Date.now() / 1000).toString()],
-        ],
+        ];
+            if (coverImage) eventTags.push(['image', coverImage]);
+
+      const event = await createEventAsync({
+        kind: 30023,
+        content: chapter.content.trim(),
+        tags: eventTags,
       });
 
-      if (!!coverImage) event.tags.push(['image', coverImage]);
 
       publishedChapters.push({
         title: chapter.title,
@@ -209,7 +211,7 @@ ${publishedChapters
         ['published_at', Math.floor(Date.now() / 1000).toString()],
       ];
     
-      if (!!coverImage) manifestEventTags.push(['image', coverImage]);
+      if (coverImage) manifestEventTags.push(['image', coverImage]);
 
     const manifestEvent = await createEventAsync({
       kind: 30023,
