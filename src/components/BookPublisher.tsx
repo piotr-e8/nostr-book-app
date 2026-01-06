@@ -202,16 +202,19 @@ ${publishedChapters
   )
   .join('\n')}
 `;
-
-    const manifestEvent = await createEventAsync({
-      kind: 30023,
-      content: manifestMarkdown,
-      tags: [
+    const manifestEventTags = [
         ['d', identifier],
         ['title', title],
         ['type', 'book'],
         ['published_at', Math.floor(Date.now() / 1000).toString()],
-      ],
+      ];
+    
+      if (!!coverImage) manifestEventTags.push(['image', coverImage]);
+
+    const manifestEvent = await createEventAsync({
+      kind: 30023,
+      content: manifestMarkdown,
+      tags: manifestEventTags,
     });
 
     toast({
