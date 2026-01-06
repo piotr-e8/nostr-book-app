@@ -160,9 +160,22 @@ const handlePublish = async () => {
       eventId: string;
     }[] = [];
 
-    for (const chapter of chapters) {
+    for (const [i, chapter] of chapters.entries()) {
       const chapterIdentifier = `${identifier}:chapter:${chapter.order}`;
+      let chapterContent = chapter.content.trim();
 
+      if (i < chapters.length - 1) {
+    const nextChapter = chapters[i + 1];
+    const nextChapterIdentifier = `${identifier}:chapter:${nextChapter.order}`;
+    const nextChapterNaddr = nip19.naddrEncode({
+      kind: 30023,
+      pubkey: user.pubkey,
+      identifier: nextChapterIdentifier,
+    });
+
+    chapterContent += `\n\n---\n[Next Chapter: ${nextChapter.title}](nostr:${nextChapterNaddr})`;
+  }
+      
       const eventTags = [
           ['d', chapterIdentifier],
           ['title', chapter.title],
@@ -170,7 +183,7 @@ const handlePublish = async () => {
           ['chapter', chapter.order.toString()],
           ['published_at', Math.floor(Date.now() / 1000).toString()],
         ];
-            if (coverImage) eventTags.push(['image', coverImage]);
+      if (coverImage) eventTags.push(['image', coverImage]);
 
       const event = await createEventAsync({
         kind: 30023,
