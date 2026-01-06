@@ -25,7 +25,7 @@ function extractTOC(markdown?: string) {
   while ((match = regex.exec(markdown))) {
     toc.push({ title: match[1], naddr: match[2] });
   }
-
+  console.log({toc});
   return toc;
 }
 
