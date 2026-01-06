@@ -9,6 +9,7 @@ export function useBookRoot(bookSlug?: string) {
     queryKey: ['book-root', bookSlug],
     enabled: !!bookSlug,
     queryFn: async () => {
+      console.log({bookSlug});
       if (!bookSlug) return null;
 
       const events = await nostr.query([
