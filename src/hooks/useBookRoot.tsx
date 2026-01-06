@@ -19,6 +19,8 @@ export function useBookRoot(bookSlug?: string) {
         },
       ]);
 
+      console.log({event: events[0] ?? null});
+      
       return events[0] ?? null;
     },
   });
