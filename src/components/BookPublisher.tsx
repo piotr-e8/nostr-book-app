@@ -175,6 +175,8 @@ const handlePublish = async () => {
         ],
       });
 
+      if (!!coverImage) event.tags.push(['image', coverImage]);
+
       publishedChapters.push({
         title: chapter.title,
         order: chapter.order,
@@ -191,8 +193,6 @@ naddr: nip19.naddrEncode({
 const manifestMarkdown = `# ${title}
 
 ${summary}
-
-${coverImage}
 
 ## Table of Contents
 ${publishedChapters
