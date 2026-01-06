@@ -7,9 +7,10 @@ export function useBookRoot(bookSlug?: string, bookAuthor?: string) {
 
   return useQuery<NostrEvent | null>({
     queryKey: ['book-root', bookSlug, bookAuthor],
-    enabled: !!bookSlug && !!bookAuthor,
-    queryFn: async () => {
+    queryFn: async (c) => {
       console.log({bookSlug, bookAuthor});
+      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(3000)]);
+
       if (!bookSlug || !bookAuthor) return null;
 
       const events = await nostr.query([
@@ -19,7 +20,7 @@ export function useBookRoot(bookSlug?: string, bookAuthor?: string) {
           '#d': [bookSlug],
           limit: 1,
         },
-      ]);
+      ], { signal});
 
       console.log({event: events[0] ?? null});
       
