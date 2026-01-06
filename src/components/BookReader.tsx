@@ -241,6 +241,21 @@ const params = useParams();
     h2: ({ node, ...props }) => (
       <h2 className="snap-start" {...props} />
     ),
+    a: ({ node, href, children, ...props }) => {
+      if (href?.startsWith('nostr:')) {
+        const naddr = href.replace('nostr:', '');
+        return (
+          <a
+            href={`/${naddr}`}
+            {...props}
+            className="text-primary underline"
+          >
+            {children}
+          </a>
+        );
+      }
+      return <a href={href} {...props}>{children}</a>;
+    },
   }}
 >
   {event.content}
