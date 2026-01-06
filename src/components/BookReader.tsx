@@ -242,20 +242,23 @@ const params = useParams();
     h2: ({ node, ...props }) => (
       <h2 className="snap-start" {...props} />
     ),
-    a: ({ node, href, children, ...props }) => {
+    a: ({ href, children }) => {
       if (href?.startsWith('nostr:')) {
         const naddr = href.replace('nostr:', '');
+        // dzieci mogą być tablicą, zamieniamy na string
+        const text = Array.isArray(children)
+          ? children.map(c => (typeof c === 'string' ? c : '')).join('')
+          : children;
         return (
           <Link
             to={`/${naddr}`}
-            {...props}
             className="text-primary underline"
           >
-            {children}
+            {text}
           </Link>
         );
       }
-      return <a href={href} {...props}>{children}</a>;
+      return <a href={href}>{children}</a>;
     },
   }}
 >
