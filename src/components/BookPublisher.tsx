@@ -187,7 +187,7 @@ const handlePublish = async () => {
 
       const event = await createEventAsync({
         kind: 30023,
-        content: chapter.content.trim(),
+        content: chapterContent,
         tags: eventTags,
       });
 
