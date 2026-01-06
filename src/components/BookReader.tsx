@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/useToast';
 import { useBookRoot } from '@/hooks/useBookRoot';
 import { nip19 } from 'nostr-tools';
 import { useParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 function extractTOC(markdown?: string) {
   console.log({title: "markdown: " + markdown}); 
@@ -245,13 +246,13 @@ const params = useParams();
       if (href?.startsWith('nostr:')) {
         const naddr = href.replace('nostr:', '');
         return (
-          <a
-            href={`/${naddr}`}
+          <Link
+            to={`/${naddr}`}
             {...props}
             className="text-primary underline"
           >
             {children}
-          </a>
+          </Link>
         );
       }
       return <a href={href} {...props}>{children}</a>;
