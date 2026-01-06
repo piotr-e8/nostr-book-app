@@ -242,23 +242,24 @@ const params = useParams();
     h2: ({ node, ...props }) => (
       <h2 className="snap-start" {...props} />
     ),
-    a: ({ href, children }) => {
-      if (href?.startsWith('nostr:')) {
-        const naddr = href.replace('nostr:', '');
-        // dzieci mogą być tablicą, zamieniamy na string
-        const text = Array.isArray(children)
-          ? children.map(c => (typeof c === 'string' ? c : '')).join('')
-          : children;
+    a: ({ node, children, ...props }) => {
+      // node.url zawiera markdownowy link
+      const url = node.url as string;
+
+      if (url?.startsWith('nostr:')) {
+        const naddr = url.replace('nostr:', '');
         return (
           <Link
             to={`/${naddr}`}
+            {...props}
             className="text-primary underline"
           >
-            {text}
+            {children}
           </Link>
         );
       }
-      return <a href={href}>{children}</a>;
+
+      return <a href={url} {...props}>{children}</a>;
     },
   }}
 >
