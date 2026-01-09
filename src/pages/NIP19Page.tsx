@@ -112,7 +112,6 @@ export function NIP19Page() {
               Back to Home
             </Button>
           </div>
-          // <BookReader event={book} />
           <BookReaderImmersive event={book} />
         </div>
       );
