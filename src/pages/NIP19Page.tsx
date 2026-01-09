@@ -2,6 +2,7 @@ import { nip19 } from 'nostr-tools';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBook } from '@/hooks/useBook';
 import { BookReader } from '@/components/BookReader';
+import { BookReaderImmersive } from '@/components/BookReaderImmersive';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
