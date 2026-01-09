@@ -29,7 +29,7 @@ export function BookReaderImmersive({ event }: Props) {
     event.tags.find(t => t[0] === 'book')?.[1] ??
     event.tags.find(t => t[0] === 'd')?.[1];
 
-  const bookRoot = useBookRoot(bookSlug);
+  const bookRoot = useBookRoot(bookSlug, event.pubkey);
   const toc = extractTOC(bookRoot.data?.content);
 
   return (
